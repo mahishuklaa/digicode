@@ -3,10 +3,10 @@ import { Menu, X } from "lucide-react";
 
 const navItems = [
   { label: "Preamble", href: "#preamble" },
-  { label: "Database", href: "#database" },
-  { label: "Tribunal", href: "#chatbot" },
-  { label: "Cases", href: "#cases" },
-  { label: "Interpretation", href: "#interpretation" },
+  { label: "The Code", href: "#database" },
+  { label: "Check", href: "#chatbot" },
+  { label: "Incidents", href: "#cases" },
+  { label: "Why", href: "#interpretation" },
 ];
 
 const NavBar = () => {
