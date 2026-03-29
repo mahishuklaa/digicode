@@ -46,9 +46,18 @@ const HeroSection = () => {
         </motion.p>
 
         <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.85 }}
+          className="text-sm text-primary/70 font-body mt-3"
+        >
+          You've definitely broken at least one.
+        </motion.p>
+
+        <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.9 }}
+          transition={{ duration: 0.8, delay: 1.0 }}
           className="text-sm text-gold-dim font-mono tracking-widest uppercase mt-6"
         >
           A legal framework for everyday digital behaviour
@@ -57,7 +66,7 @@ const HeroSection = () => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 1.2 }}
+          transition={{ duration: 1, delay: 1.3 }}
           className="mt-16"
         >
           <a href="#preamble" className="inline-flex flex-col items-center gap-2 text-muted-foreground hover:text-primary transition-colors">

@@ -15,10 +15,15 @@ const PreambleSection = () => {
           </h2>
           <div className="border-l-2 border-gold-dim pl-8">
             <p className="text-lg md:text-xl leading-relaxed text-secondary-foreground font-serif italic">
-              "We, the users of digital platforms, in order to maintain social order,
-              regulate perception, and navigate constant visibility, establish this
-              Constitution of DigiCode. Though unwritten, these rules govern interaction,
-              identity, and power in digital life."
+              "We, the Users of the Digital World, in order to maintain social order,
+              prevent unnecessary overthinking, preserve online reputation, maintain streaks,
+              respond within socially acceptable time frames, and prevent the misuse of 'seen',
+              do hereby establish this Digi-Code Constitution."
+            </p>
+            <p className="text-base leading-relaxed text-muted-foreground font-body mt-6">
+              This Constitution recognises that digital platforms are not merely tools of
+              communication, but function as societies with their own norms, expectations,
+              languages, hierarchies, and power structures.
             </p>
           </div>
           <div className="line-ornament w-full mt-12" />
