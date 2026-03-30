@@ -326,7 +326,7 @@ const DigiCodeDatabase = () => {
       layout
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.02 }}
       transition={{ duration: 0.45 }}
       className="scroll-mt-24 rounded-md border border-border bg-card/40"
     >
