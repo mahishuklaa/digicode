@@ -15,7 +15,6 @@ const Index = () => {
 
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, []);
-
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
