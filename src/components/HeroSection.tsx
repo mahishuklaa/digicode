@@ -45,23 +45,25 @@ const HeroSection = () => {
           "No one wrote these rules. Yet everyone follows them."
         </motion.p>
 
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.85 }}
-          className="text-sm text-primary/70 font-body mt-3"
-        >
-          You've definitely broken at least one.
-        </motion.p>
+        <div className="mt-4 space-y-3">
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.85 }}
+            className="text-sm text-primary/70 font-body"
+          >
+            You've definitely broken at least one.
+          </motion.p>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 1.0 }}
-          className="text-sm text-gold-dim font-mono tracking-widest uppercase mt-6"
-        >
-          A unsaid framework for everyday digital behaviour
-        </motion.p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 1.0 }}
+            className="text-sm text-gold-dim font-mono tracking-widest uppercase"
+          >
+            An unsaid framework for everyday digital behaviour
+          </motion.p>
+        </div>
 
         <motion.div
           initial={{ opacity: 0 }}
