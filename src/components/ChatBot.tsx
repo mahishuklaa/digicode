@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Send, Scale } from "lucide-react";
-import { rules } from "@/data/digicode-rules";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Scale, Send } from "lucide-react";
+import { rules, type DigiCodeRule } from "@/data/digicode-rules";
 
 interface ChatMessage {
   role: "user" | "bot";
@@ -97,11 +97,10 @@ const keywordMap: Record<string, string[]> = {
 };
 
 const signalBoosts: Array<{ ids: string[]; words: string[] }> = [
-  { ids: ["16"], words: ["reply", "replied", "replying", "hours", "hour", "mins", "minutes", "late", "delay", "waiting"] },
+  { ids: ["16", "50", "63"], words: ["reply", "replied", "replying", "hours", "hour", "mins", "minutes", "late", "delay", "waiting"] },
   { ids: ["18"], words: ["seen", "read", "opened", "blue ticks"] },
-  { ids: ["18", "74", "76"], words: ["notification", "notifications", "preview"] },
-  { ids: ["22", "80"], words: ["online", "active", "last seen"] },
-  { ids: ["17"], words: ["double", "again", "twice", "multiple"] },
+  { ids: ["18", "22", "74", "76", "80"], words: ["notification", "notifications", "preview", "online", "active", "last seen"] },
+  { ids: ["17", "27", "85"], words: ["double", "again", "twice", "multiple"] },
   { ids: ["20", "64", "72"], words: ["ok", "k", "fine", "hmm", "cool", "dry"] },
   { ids: ["23"], words: ["voice", "audio"] },
   { ids: ["24", "42", "66"], words: ["emoji", "thumbs", "react"] },
@@ -111,6 +110,14 @@ const signalBoosts: Array<{ ids: string[]; words: string[] }> = [
   { ids: ["41", "49"], words: ["group", "left group", "removed from group", "admin"] },
   { ids: ["59", "60", "61"], words: ["unfollow", "removed follower", "block", "blocked"] },
   { ids: ["56", "65", "83"], words: ["indirect", "vague", "lyrics", "caption", "posted about"] },
+];
+
+const quickPrompts = [
+  "Was Digi-Code violated?",
+  "Who has more power?",
+  "What should I do?",
+  "What does this mean?",
+  "Is this a red flag?",
 ];
 
 function normalizeText(value: string) {
@@ -139,11 +146,11 @@ function scoreRule(ruleId: string, input: string, normalizedInput: string) {
     rule.clause,
     rule.interpretation,
     ...rule.clauses,
+    rule.category,
+    ...rule.tags,
   ].map(normalizeText);
 
-  const inputTokens = Array.from(
-    new Set(normalizedInput.split(" ").filter((token) => token.length > 2)),
-  );
+  const inputTokens = Array.from(new Set(normalizedInput.split(" ").filter((token) => token.length > 2)));
 
   for (const token of inputTokens) {
     if (searchableParts.some((part) => part.includes(token))) {
@@ -162,11 +169,11 @@ function scoreRule(ruleId: string, input: string, normalizedInput: string) {
     }
   }
 
-  if (normalizedInput.includes("friend") && ["16", "18", "22"].includes(ruleId)) {
+  if (normalizedInput.includes("friend") && ["16", "18", "22", "28", "31"].includes(ruleId)) {
     score += 2;
   }
 
-  if (/\b\d+\s*(hr|hrs|hour|hours|min|mins|minute|minutes)\b/i.test(input) && ruleId === "16") {
+  if (/\b\d+\s*(hr|hrs|hour|hours|min|mins|minute|minutes)\b/i.test(input) && ["16", "18", "22"].includes(ruleId)) {
     score += 5;
     matchedSignals.push("time delay");
   }
@@ -175,6 +182,84 @@ function scoreRule(ruleId: string, input: string, normalizedInput: string) {
     score,
     matchedSignals: Array.from(new Set(matchedSignals)),
   };
+}
+
+function summarizeSituation(input: string) {
+  const cleaned = input.trim().replace(/\s+/g, " ");
+  return cleaned.endsWith(".") ? cleaned : `${cleaned}.`;
+}
+
+function getViolationStatus(primaryRule: DigiCodeRule, secondaryRules: DigiCodeRule[]) {
+  const relatedArticles = [primaryRule, ...secondaryRules];
+  const averageViolation = relatedArticles.reduce((sum, rule) => sum + rule.violatedScore, 0) / relatedArticles.length;
+
+  if (averageViolation >= 85) {
+    return "A probable Digi-Code violation is indicated under the cited articles.";
+  }
+  if (averageViolation >= 65) {
+    return "A minor or context-dependent Digi-Code violation may be applicable.";
+  }
+  return "No severe Digi-Code violation is conclusively established, though the interaction remains socially significant.";
+}
+
+function getSocialMeaning(primaryRule: DigiCodeRule, matchedSignals: string[], input: string) {
+  const normalizedInput = normalizeText(input);
+
+  if (["18", "22", "16", "50", "63", "80", "85"].includes(primaryRule.id)) {
+    return "The behaviour described suggests reduced conversational priority, possible intentional delay, or an attempt to control availability and conversational pace.";
+  }
+  if (["28", "29", "30", "31", "34", "36"].includes(primaryRule.id)) {
+    return "The behaviour indicates shifting social acknowledgment, hierarchy, or selective visibility within the digital relationship.";
+  }
+  if (["59", "60", "61", "64", "65"].includes(primaryRule.id)) {
+    return "The behaviour suggests conflict signalling, emotional distancing, or indirect confrontation rather than neutral digital conduct.";
+  }
+  if (["32", "52", "53", "55", "82"].includes(primaryRule.id)) {
+    return "The behaviour appears connected to identity curation, relationship repositioning, or public image management in digital space.";
+  }
+  if (matchedSignals.includes("screenshot") || normalizedInput.includes("screenshot")) {
+    return "The behaviour indicates heightened surveillance logic, where communication is being treated as evidence rather than as private exchange.";
+  }
+
+  return "The behaviour likely reflects a social signal rather than a purely technical action. Under Digi-Code logic, tone, timing, and visibility all carry interpretive meaning.";
+}
+
+function getRecommendedAction(primaryRule: DigiCodeRule, input: string) {
+  const normalizedInput = normalizeText(input);
+
+  if (["16", "18", "22", "50", "63"].includes(primaryRule.id)) {
+    return "Do not escalate immediately through repeated messages. Maintain reply-time balance, observe whether the behaviour repeats, and respond with proportional rather than urgent energy.";
+  }
+  if (["17", "27", "85"].includes(primaryRule.id)) {
+    return "Do not surrender conversational power through excessive follow-up. Allow the interaction to breathe, then reassess whether reciprocity is being maintained.";
+  }
+  if (["28", "29", "30", "31", "34"].includes(primaryRule.id)) {
+    return "Do not confront the matter impulsively. First evaluate whether the change is isolated or part of a broader shift in social acknowledgment, visibility, or hierarchy.";
+  }
+  if (["59", "60", "61", "64", "65"].includes(primaryRule.id)) {
+    return "Proceed with caution. Do not react through indirect escalation. If clarification is necessary, use direct and measured communication rather than symbolic retaliation.";
+  }
+  if (normalizedInput.includes("birthday")) {
+    return "Treat the situation as a test of public acknowledgment norms. Note the effort level before deciding whether the issue reflects forgetfulness or relationship downgrade.";
+  }
+
+  return "Take no dramatic action yet. Gather one more behavioural signal, avoid over-interpretation from a single event, and respond with measured digital dignity.";
+}
+
+function buildVerdict(primaryRule: DigiCodeRule, violationStatus: string) {
+  if (violationStatus.includes("probable")) {
+    return `Under Article ${primaryRule.article} - ${primaryRule.title}, the conduct described appears constitutionally questionable and socially consequential.`;
+  }
+  if (violationStatus.includes("minor")) {
+    return `Under Article ${primaryRule.article} - ${primaryRule.title}, the conduct described suggests a mild but meaningful disturbance of Digi-Code expectations.`;
+  }
+  return `Under Article ${primaryRule.article} - ${primaryRule.title}, no major Digi-Code breach is conclusively established, but the social signal remains noteworthy.`;
+}
+
+function formatArticles(primaryRule: DigiCodeRule, secondaryRules: DigiCodeRule[]) {
+  return [primaryRule, ...secondaryRules]
+    .map((rule) => `- Article ${rule.article} - ${rule.title}`)
+    .join("\n");
 }
 
 function analyzeInput(input: string): ChatMessage {
@@ -191,42 +276,59 @@ function analyzeInput(input: string): ChatMessage {
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  const bestMatch = rankedRules[0];
-  const alternatives = rankedRules.slice(1, 3);
+  const primary = rankedRules[0];
+  const secondary = rankedRules.slice(1, 4);
 
-  if (bestMatch && bestMatch.score >= 5) {
-    const { rule, matchedSignals } = bestMatch;
-    const riskLevels = ["Low", "Moderate", "High", "Critical"];
-    const risk = riskLevels[Math.min(Math.floor(rule.violatedScore / 25), 3)];
-    const clausePreview = rule.clauses
-      .slice(0, 3)
-      .map((clause, index) => `Clause ${index + 1}: ${clause}`);
-    const secondaryRead = alternatives.length > 0
-      ? alternatives.map((entry) => `Article ${entry.rule.article} - ${entry.rule.title}`).join("; ")
-      : "No major secondary article surfaced.";
-
+  if (!primary || primary.score < 5) {
     return {
       role: "bot",
-      content:
-        `**Likely Code Issue**\n` +
-        `**Reference:** Article ${rule.article} - ${rule.title}\n` +
-        `**Risk Level:** ${risk}\n` +
-        `**Why The Code Flagged This:** ${matchedSignals.slice(0, 4).join(", ") || "context clues from your description"}\n` +
-        `**Most Relevant Clauses:**\n${clausePreview.join("\n")}\n` +
-        `**Code Reading:** ${rule.interpretation}\n` +
-        `**Secondary Articles:** ${secondaryRead}\n` +
-        `*Verdict: This absolutely sounds like something the Code would judge.*`,
+      content: [
+        "Case Analysis Report",
+        "Situation Summary:",
+        summarizeSituation(input),
+        "Relevant Digi-Code Articles:",
+        "- No dominant article could be conclusively identified from the present facts.",
+        "Digi-Code Interpretation:",
+        "The matter remains constitutionally ambiguous. More specific details about reply time, seen status, online visibility, posting behaviour, screenshots, blocking, or story interaction are required.",
+        "Violation Status:",
+        "No formal Digi-Code finding can yet be issued.",
+        "Social Meaning:",
+        "The described behaviour may still be socially significant, but the available facts are too general for constitutional classification.",
+        "Recommended Action:",
+        "Submit a fuller factual account with platform indicators, timing, and relationship context.",
+        "Digi-Consultant Verdict:",
+        "The Court of Digi-Code reserves judgment pending stronger evidence.",
+      ].join("\n"),
     };
   }
 
+  const primaryRule = primary.rule;
+  const secondaryRules = secondary.map((entry) => entry.rule);
+  const violationStatus = getViolationStatus(primaryRule, secondaryRules);
+  const interpretation = `${primaryRule.interpretation} ${secondaryRules.length > 0 ? `Related constitutional signals also arise under ${secondaryRules.map((rule) => `Article ${rule.article}`).join(", ")}.` : ""}`.trim();
+  const socialMeaning = getSocialMeaning(primaryRule, primary.matchedSignals, input);
+  const recommendedAction = getRecommendedAction(primaryRule, input);
+  const verdict = buildVerdict(primaryRule, violationStatus);
+
   return {
     role: "bot",
-    content:
-      `**Ambiguous Case**\n` +
-      `**Code Reading:** The Code cannot pin this to one clean article yet, but it still feels socially risky.\n` +
-      `**Try Giving More Detail:** mention things like reply time, seen status, notifications, story views, screenshots, group chat, dry replies, posting, or blocking.\n` +
-      `**Example Prompt:** "My friend clearly saw my text from the notification preview, stayed active for 2 hours, and still did not reply."\n` +
-      `*Verdict: not legally proven, but spiritually suspicious.*`,
+    content: [
+      "Case Analysis Report",
+      "Situation Summary:",
+      summarizeSituation(input),
+      "Relevant Digi-Code Articles:",
+      formatArticles(primaryRule, secondaryRules),
+      "Digi-Code Interpretation:",
+      interpretation,
+      "Violation Status:",
+      violationStatus,
+      "Social Meaning:",
+      socialMeaning,
+      "Recommended Action:",
+      recommendedAction,
+      "Digi-Consultant Verdict:",
+      verdict,
+    ].join("\n"),
   };
 }
 
@@ -250,9 +352,14 @@ const ChatBot = () => {
     setInput("");
   };
 
+  const applyPrompt = (prompt: string) => {
+    const nextValue = input.trim() ? `${input.trim()} ${prompt}` : prompt;
+    setInput(nextValue);
+  };
+
   return (
-    <section id="chatbot" className="py-24 md:py-32 px-4">
-      <div className="max-w-3xl mx-auto">
+    <section id="chatbot" className="px-4 py-24 md:py-32">
+      <div className="mx-auto max-w-3xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -260,24 +367,26 @@ const ChatBot = () => {
           transition={{ duration: 0.6 }}
           className="mb-8"
         >
-          <h2 className="text-xs font-mono tracking-[0.4em] uppercase text-primary mb-4">Interactive Check</h2>
-          <p className="text-2xl md:text-3xl font-serif text-foreground flex items-center gap-3">
+          <h2 className="mb-4 text-xs font-mono uppercase tracking-[0.4em] text-primary">Digi-Consultant</h2>
+          <p className="flex items-center gap-3 text-2xl font-serif text-foreground md:text-3xl">
             <Scale size={28} className="text-primary" />
-            Check the Code
+            Constitutional Review
           </p>
-          <p className="text-sm text-muted-foreground mt-2 font-body">
-            Describe a digital interaction. We&apos;ll tell you if you broke the code.
+          <p className="mt-2 text-sm font-body text-muted-foreground">
+            Submit a digital situation for constitutional interpretation, social analysis, and Digi-Code judgment.
           </p>
         </motion.div>
 
-        <div className="border border-border rounded-md bg-card overflow-hidden">
-          <div className="h-80 overflow-y-auto p-4 space-y-4">
+        <div className="overflow-hidden rounded-md border border-border bg-card">
+          <div className="h-80 space-y-4 overflow-y-auto p-4">
             {messages.length === 0 && (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-sm font-body">
-                <div className="text-center space-y-2">
+              <div className="flex h-full items-center justify-center text-sm font-body text-muted-foreground">
+                <div className="space-y-3 text-center">
                   <Scale size={24} className="mx-auto opacity-30" />
-                  <p>Go ahead. Tell us what happened.</p>
-                  <p className="text-xs">Try: "My friend saw my text from notifications and still didn&apos;t reply for 2 hours"</p>
+                  <p>Present the facts of the digital matter before Digi-Consultant.</p>
+                  <p className="text-xs">
+                    Try: &quot;My friend saw my message, stayed active, and did not reply for 6 hours while posting stories.&quot;
+                  </p>
                 </div>
               </div>
             )}
@@ -287,41 +396,48 @@ const ChatBot = () => {
                   key={i}
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`${msg.role === "user" ? "text-right" : "text-left"}`}
+                  className={msg.role === "user" ? "text-right" : "text-left"}
                 >
                   <div
-                    className={`inline-block max-w-[85%] px-4 py-3 rounded-md text-sm ${
+                    className={`inline-block max-w-[88%] rounded-md px-4 py-3 text-sm ${
                       msg.role === "user"
-                        ? "bg-secondary text-secondary-foreground font-body"
-                        : "bg-surface-elevated text-foreground font-body border border-border"
+                        ? "bg-secondary font-body text-secondary-foreground"
+                        : "border border-border bg-surface-elevated font-body text-foreground"
                     }`}
                   >
                     {msg.role === "bot" ? (
                       <div className="space-y-2 text-left">
                         {msg.content.split("\n").map((line, j) => {
-                          const boldMatch = line.match(/^\*\*(.+?)\*\*\s*(.*)$/);
-                          if (boldMatch) {
+                          if (line === "Case Analysis Report") {
                             return (
-                              <p key={j}>
-                                <strong className="text-primary font-mono text-xs tracking-wider uppercase">
-                                  {boldMatch[1]}
-                                </strong>{" "}
-                                {boldMatch[2]}
+                              <p key={j} className="font-serif text-base text-primary">
+                                {line}
                               </p>
                             );
                           }
-                          if (line.startsWith("*") && line.endsWith("*")) {
+
+                          if (line.endsWith(":")) {
                             return (
-                              <p key={j} className="text-muted-foreground italic text-xs mt-1">
-                                {line.replace(/\*/g, "")}
+                              <p key={j} className="pt-1 font-mono text-[11px] uppercase tracking-[0.22em] text-primary/85">
+                                {line}
                               </p>
                             );
                           }
-                          if (line.trim()) return <p key={j}>{line.replace(/\*/g, "")}</p>;
-                          return null;
+
+                          if (line.startsWith("- ")) {
+                            return (
+                              <p key={j} className="pl-2 text-secondary-foreground">
+                                {line}
+                              </p>
+                            );
+                          }
+
+                          return line.trim() ? <p key={j}>{line}</p> : null;
                         })}
                       </div>
-                    ) : msg.content}
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -329,21 +445,33 @@ const ChatBot = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSubmit} className="border-t border-border p-3 flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Describe what happened..."
-              className="flex-1 bg-transparent border-none outline-none text-sm font-body text-foreground placeholder:text-muted-foreground"
-            />
-            <button
-              type="submit"
-              className="p-2 text-primary hover:text-gold-glow transition-colors"
-            >
-              <Send size={16} />
-            </button>
-          </form>
+          <div className="border-t border-border px-3 pt-3">
+            <div className="mb-3 flex flex-wrap gap-2">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => applyPrompt(prompt)}
+                  className="rounded-full border border-border bg-secondary/40 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-secondary-foreground transition-colors hover:border-primary/30 hover:text-primary"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex gap-2 pb-3">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Describe the digital situation for Digi-Consultant..."
+                className="flex-1 border-none bg-transparent text-sm font-body text-foreground outline-none placeholder:text-muted-foreground"
+              />
+              <button type="submit" className="p-2 text-primary transition-colors hover:text-gold-glow">
+                <Send size={16} />
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </section>

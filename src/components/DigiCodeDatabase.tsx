@@ -104,8 +104,21 @@ const ArticleEntry = ({
               <span className="font-mono text-[11px] tracking-[0.3em] uppercase text-primary">
                 Article {rule.article}
               </span>
+              <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.2em] text-primary/85">
+                {rule.category}
+              </span>
             </div>
             <h4 className="mt-2 font-serif text-lg text-foreground">{rule.title}</h4>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {rule.tags.map((tag) => (
+                <span
+                  key={`${rule.id}-${tag}`}
+                  className="rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-secondary-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-5 pb-5">
