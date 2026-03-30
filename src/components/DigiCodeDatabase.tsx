@@ -57,6 +57,15 @@ const quickJumpItems: Array<{ id: string; label: string }> = [
   { id: "part-6", label: "Part VI - Schedules" },
 ];
 
+const quickJumpParents: Record<string, string[]> = {
+  "chapter-1": ["part-4"],
+  "chapter-2": ["part-4"],
+  "chapter-3": ["part-4"],
+  "chapter-4": ["part-4"],
+  "chapter-5": ["part-4"],
+  "chapter-6": ["part-4"],
+};
+
 const normalizeText = (value: string) =>
   value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
@@ -285,6 +294,20 @@ const DigiCodeDatabase = () => {
 
   const isSectionOpen = (sectionId: string) => expandedSections.includes(sectionId);
 
+  const handleJump = (targetId: string) => {
+    const sectionsToOpen = quickJumpParents[targetId] ?? [];
+
+    if (sectionsToOpen.length > 0) {
+      setExpandedSections((prev) => Array.from(new Set([...prev, ...sectionsToOpen])));
+      window.setTimeout(() => {
+        document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+      return;
+    }
+
+    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const renderSectionShell = ({
     id,
     label,
@@ -378,9 +401,7 @@ const DigiCodeDatabase = () => {
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() =>
-                        document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })
-                      }
+                      onClick={() => handleJump(item.id)}
                       className="w-full text-left text-xs font-mono uppercase tracking-wider text-secondary-foreground transition-colors hover:text-primary"
                     >
                       {item.label}
