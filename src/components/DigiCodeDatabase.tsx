@@ -146,7 +146,7 @@ const DigiCodeDatabase = () => {
 
         categoryRules.forEach((rule) => {
           const chapterRules = chapterMap.get(rule.articleTitle) ?? [];
-          chapterRules.push({ ...rule, clauses: [rule.clause] });
+          chapterRules.push({ ...rule, clauses: rule.clauses.length > 0 ? rule.clauses : [rule.clause] });
           chapterMap.set(rule.articleTitle, chapterRules);
         });
 

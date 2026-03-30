@@ -1,3 +1,5 @@
+import { clauseMap } from "@/data/digicode-clauses";
+
 export type DigiCodeCategory = "Messaging" | "Social Media" | "Group Chats" | "Identity & Behaviour" | "Power Moves";
 export type DigiCodeTag = "Power" | "Surveillance" | "Identity" | "Sociality" | "Normalisation";
 export type DigiCodeSort = "default" | "relatable" | "chaotic" | "violated";
@@ -9,6 +11,7 @@ export interface DigiCodeRule {
   section: string;
   title: string;
   clause: string;
+  clauses: string[];
   interpretation: string;
   category: DigiCodeCategory;
   tags: DigiCodeTag[];
@@ -17,7 +20,7 @@ export interface DigiCodeRule {
   violatedScore: number;
 }
 
-export const rules: DigiCodeRule[] = [
+const baseRules = [
   // PART I — FUNDAMENTAL RIGHTS OF DIGITAL CITIZENS
   { id: "1", article: 1, articleTitle: "Fundamental Rights", section: "1", title: "Right to Timely Communication", clause: "Every individual shall have the right to receive a response within a socially acceptable time frame, depending on the relationship and context of communication.", interpretation: "Reply time in digital communication functions as a social signal rather than just a technical delay. The time taken to reply communicates interest, priority, emotional closeness, and power within a relationship.", category: "Messaging", tags: ["Power", "Sociality"], relatableScore: 95, chaoticScore: 40, violatedScore: 90 },
   { id: "2", article: 2, articleTitle: "Fundamental Rights", section: "2", title: "Right to Social Acknowledgment", clause: "Every individual shall have the right to expect acknowledgment from friends and close connections through likes, replies, or responses on important posts and messages.", interpretation: "Likes, comments, and replies function as forms of digital acknowledgment and social validation. Not acknowledging someone's message or post may be interpreted as social neglect or lack of support.", category: "Social Media", tags: ["Sociality", "Normalisation"], relatableScore: 88, chaoticScore: 30, violatedScore: 85 },
@@ -121,6 +124,16 @@ export const rules: DigiCodeRule[] = [
   { id: "84", article: 84, articleTitle: "General Principles", section: "84", title: "Audience Principle", clause: "Digital content is often created for a specific audience but may be viewed by a larger unintended audience. Awareness of being watched may influence how individuals present themselves online.", interpretation: "Content created for a specific person or group is often viewed by a much larger audience. Awareness of being watched influences behaviour, leading to more curated communication.", category: "Identity & Behaviour", tags: ["Surveillance", "Identity"], relatableScore: 82, chaoticScore: 35, violatedScore: 45 },
   { id: "85", article: 85, articleTitle: "General Principles", section: "85", title: "Power and Control Principle", clause: "Control over reply time, response tone, and communication frequency may create power imbalance between individuals. The individual who replies less frequently or shows less urgency may hold greater conversational power.", interpretation: "Control over communication creates power dynamics. Individuals who respond less frequently are often perceived as holding more control, while those who respond quickly may appear more emotionally dependent.", category: "Power Moves", tags: ["Power", "Sociality"], relatableScore: 90, chaoticScore: 55, violatedScore: 78 },
 ];
+
+export const rules: DigiCodeRule[] = baseRules.map((rule) => {
+  const clauses = clauseMap[rule.article] ?? [rule.clause];
+
+  return {
+    ...rule,
+    clause: clauses.join(" "),
+    clauses,
+  };
+});
 
 export const categories: DigiCodeCategory[] = ["Messaging", "Social Media", "Group Chats", "Identity & Behaviour", "Power Moves"];
 export const tags: DigiCodeTag[] = ["Power", "Surveillance", "Identity", "Sociality", "Normalisation"];
