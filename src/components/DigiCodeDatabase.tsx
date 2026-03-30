@@ -1,51 +1,74 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { categories, rules, type DigiCodeCategory, type DigiCodeRule } from "@/data/digicode-rules";
+import { rules, type DigiCodeRule } from "@/data/digicode-rules";
+import {
+  conclusionSection,
+  definitions,
+  partCode,
+  partDuties,
+  partOffences,
+  partPrinciples,
+  partRights,
+  schedulesSection,
+  type DigiCodeChapter,
+  type DigiCodePartSection,
+  type DigiCodePartWithArticles,
+} from "@/data/digicode-structure";
 
-type FilterCategory = DigiCodeCategory | "All";
+type SectionFilter =
+  | "all"
+  | "definitions"
+  | "part-1"
+  | "part-2"
+  | "part-3"
+  | "part-4"
+  | "part-5"
+  | "part-6"
+  | "conclusion";
 
-interface GroupedRule extends DigiCodeRule {
-  clauses: string[];
-}
-
-interface ChapterGroup {
-  title: string;
-  articles: GroupedRule[];
-}
-
-interface CategoryGroup {
-  category: DigiCodeCategory;
-  chapters: ChapterGroup[];
-  articleCount: number;
-}
-
-const quickJumpItems: { label: string; category: DigiCodeCategory; id: string }[] = [
-  { label: "Messaging", category: "Messaging", id: "category-messaging" },
-  { label: "Social Media", category: "Social Media", id: "category-social-media" },
-  { label: "Group Chats", category: "Group Chats", id: "category-group-chats" },
-  { label: "Identity", category: "Identity & Behaviour", id: "category-identity-behaviour" },
-  { label: "Power", category: "Power Moves", id: "category-power-moves" },
+const sectionOptions: Array<{ value: SectionFilter; label: string }> = [
+  { value: "all", label: "All Sections" },
+  { value: "definitions", label: "Definitions" },
+  { value: "part-1", label: "Part I: Rights" },
+  { value: "part-2", label: "Part II: Duties" },
+  { value: "part-3", label: "Part III: Offences" },
+  { value: "part-4", label: "Part IV: Digital Code" },
+  { value: "part-5", label: "Part V: Principles" },
+  { value: "part-6", label: "Part VI: Schedules" },
+  { value: "conclusion", label: "Conclusion" },
 ];
 
-const slugify = (value: string) =>
-  value.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const quickJumpItems: Array<{ id: string; label: string }> = [
+  { id: "definitions", label: "Definitions" },
+  { id: "part-1", label: "Rights" },
+  { id: "part-2", label: "Duties" },
+  { id: "part-3", label: "Penalties" },
+  { id: "part-4", label: "Digital Code" },
+  { id: "part-5", label: "Principles" },
+  { id: "part-6", label: "Schedules" },
+  { id: "conclusion", label: "Conclusion" },
+];
 
-const buildArticleValue = (rule: DigiCodeRule) => `article-${rule.id}`;
+const normalizeText = (value: string) => value.toLowerCase();
 
-const buildCategoryValue = (category: DigiCodeCategory) => `category-${slugify(category)}`;
+const getClauseLabel = (index: number) => `Clause ${index + 1}`;
 
-const getClauseLabel = (index: number) => `Clause (${String.fromCharCode(97 + index)})`;
+const matchesSearch = (search: string, values: string[]) => {
+  if (!search) return true;
+  const normalizedSearch = normalizeText(search);
+  return values.some((value) => normalizeText(value).includes(normalizedSearch));
+};
 
 const ArticleEntry = ({
   rule,
   forceOpen,
 }: {
-  rule: GroupedRule;
+  rule: DigiCodeRule;
   forceOpen: boolean;
 }) => {
-  const articleValue = buildArticleValue(rule);
+  const articleValue = `article-${rule.id}`;
 
   return (
     <Accordion
@@ -60,11 +83,10 @@ const ArticleEntry = ({
               <span className="font-mono text-[11px] tracking-[0.3em] uppercase text-primary">
                 Article {rule.article}
               </span>
-              <span className="text-xs text-muted-foreground">Section {rule.section}</span>
+              <span className="text-xs text-muted-foreground">{rule.title}</span>
             </div>
-            <h4 className="font-serif text-lg text-foreground">{rule.title}</h4>
-            <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-              {rule.clauses[0]}
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {rule.clauses[0] ?? rule.clause}
             </p>
           </div>
         </AccordionTrigger>
@@ -95,94 +117,174 @@ const ArticleEntry = ({
   );
 };
 
+const SectionIntro = ({ section }: { section: DigiCodePartSection }) => (
+  <div className="space-y-3">
+    {section.intro.map((paragraph) => (
+      <p key={paragraph} className="text-sm leading-relaxed text-muted-foreground">
+        {paragraph}
+      </p>
+    ))}
+  </div>
+);
+
 const DigiCodeDatabase = () => {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<FilterCategory>("All");
-  const [activeArticle, setActiveArticle] = useState("All");
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(
-    categories.map(buildCategoryValue),
-  );
+  const [activeSection, setActiveSection] = useState<SectionFilter>("all");
+  const [activeArticle, setActiveArticle] = useState("all");
   const [expandAllArticles, setExpandAllArticles] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<string[]>([
+    "definitions",
+    "part-1",
+    "part-2",
+    "part-3",
+    "part-4",
+    "part-5",
+    "part-6",
+    "conclusion",
+  ]);
 
-  const articleOptions = useMemo(() => {
-    const articleMap = new Map<string, string>();
+  const articleMap = useMemo(() => new Map(rules.map((rule) => [rule.article, rule])), []);
 
-    rules.forEach((rule) => {
-      if (activeCategory === "All" || rule.category === activeCategory) {
-        articleMap.set(rule.id, `Article ${rule.article}: ${rule.title}`);
-      }
-    });
+  const articleOptions = useMemo(
+    () =>
+      [...rules]
+        .sort((a, b) => a.article - b.article)
+        .map((rule) => ({
+          value: String(rule.article),
+          label: `Article ${rule.article}: ${rule.title}`,
+        })),
+    [],
+  );
 
-    return Array.from(articleMap.entries()).map(([value, label]) => ({ value, label }));
-  }, [activeCategory]);
+  const visibleDefinitions = useMemo(
+    () =>
+      definitions.filter((definition) =>
+        matchesSearch(search, [definition.term, definition.text, `Definition ${definition.id}`]),
+      ),
+    [search],
+  );
 
-  useEffect(() => {
-    if (activeArticle !== "All" && !articleOptions.some((option) => option.value === activeArticle)) {
-      setActiveArticle("All");
-    }
-  }, [activeArticle, articleOptions]);
+  const visibleStandaloneArticles = (part: DigiCodePartWithArticles) =>
+    part.articleNumbers
+      .map((articleNumber) => articleMap.get(articleNumber))
+      .filter((rule): rule is DigiCodeRule => Boolean(rule))
+      .filter((rule) => {
+        const matchesSection = activeSection === "all" || activeSection === part.id;
+        const matchesArticle = activeArticle === "all" || String(rule.article) === activeArticle;
+        const matchesText = matchesSearch(search, [
+          rule.title,
+          rule.articleTitle,
+          rule.clause,
+          rule.interpretation,
+          ...rule.clauses,
+        ]);
+        return matchesSection && matchesArticle && matchesText;
+      });
 
-  const filteredRules = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
+  const visibleCodeChapters = useMemo(
+    () =>
+      partCode.chapters
+        .map((chapter) => {
+          const articles = chapter.articleNumbers
+            .map((articleNumber) => articleMap.get(articleNumber))
+            .filter((rule): rule is DigiCodeRule => Boolean(rule))
+            .filter((rule) => {
+              const matchesSection = activeSection === "all" || activeSection === "part-4";
+              const matchesArticle = activeArticle === "all" || String(rule.article) === activeArticle;
+              const matchesText = matchesSearch(search, [
+                chapter.title,
+                rule.title,
+                rule.articleTitle,
+                rule.clause,
+                rule.interpretation,
+                ...rule.clauses,
+              ]);
+              return matchesSection && matchesArticle && matchesText;
+            });
 
-    return rules.filter((rule) => {
-      const matchesCategory = activeCategory === "All" || rule.category === activeCategory;
-      const matchesArticle = activeArticle === "All" || rule.id === activeArticle;
-      const matchesSearch =
-        normalizedSearch === "" ||
-        rule.title.toLowerCase().includes(normalizedSearch) ||
-        rule.clause.toLowerCase().includes(normalizedSearch) ||
-        rule.articleTitle.toLowerCase().includes(normalizedSearch);
+          return { ...chapter, articles };
+        })
+        .filter((chapter) => chapter.articles.length > 0),
+    [activeArticle, activeSection, articleMap, search],
+  );
 
-      return matchesCategory && matchesArticle && matchesSearch;
-    });
-  }, [activeArticle, activeCategory, search]);
+  const rightsArticles = visibleStandaloneArticles(partRights);
+  const dutiesArticles = visibleStandaloneArticles(partDuties);
+  const principleArticles = visibleStandaloneArticles(partPrinciples);
 
-  const structuredRules = useMemo<CategoryGroup[]>(() => {
-    return categories
-      .map((category) => {
-        const categoryRules = filteredRules.filter((rule) => rule.category === category);
-        const chapterMap = new Map<string, GroupedRule[]>();
+  const visiblePartOffences =
+    (activeSection === "all" || activeSection === "part-3") &&
+    activeArticle === "all" &&
+    matchesSearch(search, [...partOffences.intro, partOffences.title]);
 
-        categoryRules.forEach((rule) => {
-          const chapterRules = chapterMap.get(rule.articleTitle) ?? [];
-          chapterRules.push({ ...rule, clauses: rule.clauses.length > 0 ? rule.clauses : [rule.clause] });
-          chapterMap.set(rule.articleTitle, chapterRules);
-        });
+  const visibleSchedules =
+    (activeSection === "all" || activeSection === "part-6") &&
+    activeArticle === "all" &&
+    matchesSearch(search, [...schedulesSection.intro, schedulesSection.title]);
 
-        return {
-          category,
-          chapters: Array.from(chapterMap.entries()).map(([title, articles]) => ({
-            title,
-            articles,
-          })),
-          articleCount: categoryRules.length,
-        };
-      })
-      .filter((group) => group.articleCount > 0);
-  }, [filteredRules]);
+  const visibleConclusion =
+    (activeSection === "all" || activeSection === "conclusion") &&
+    activeArticle === "all" &&
+    matchesSearch(search, [...conclusionSection.intro, conclusionSection.title]);
 
-  const clearFilters = () => {
-    setSearch("");
-    setActiveCategory("All");
-    setActiveArticle("All");
-  };
+  const totalVisibleArticles =
+    rightsArticles.length + dutiesArticles.length + principleArticles.length +
+    visibleCodeChapters.reduce((count, chapter) => count + chapter.articles.length, 0);
 
-  const handleJumpToCategory = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const toggleCategory = (value: string) => {
-    setExpandedCategories((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value],
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections((prev) =>
+      prev.includes(sectionId) ? prev.filter((item) => item !== sectionId) : [...prev, sectionId],
     );
   };
 
-  const handleExpandAllCategories = (expand: boolean) => {
-    setExpandedCategories(
-      expand ? structuredRules.map((group) => buildCategoryValue(group.category)) : [],
-    );
-  };
+  const isSectionOpen = (sectionId: string) => expandedSections.includes(sectionId);
+
+  const renderSectionShell = ({
+    id,
+    label,
+    title,
+    count,
+    children,
+  }: {
+    id: string;
+    label: string;
+    title: string;
+    count?: string;
+    children: React.ReactNode;
+  }) => (
+    <motion.section
+      id={id}
+      layout
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.45 }}
+      className="scroll-mt-24 rounded-md border border-border bg-card/40"
+    >
+      <button
+        type="button"
+        onClick={() => toggleSection(id)}
+        className="w-full px-5 py-5 md:px-6 flex items-start justify-between gap-4 text-left"
+      >
+        <div>
+          <p className="text-xs font-mono tracking-[0.35em] uppercase text-primary mb-2">
+            {label}
+          </p>
+          <h3 className="text-2xl md:text-3xl font-serif text-foreground">{title}</h3>
+          {count && <p className="mt-2 text-sm text-muted-foreground">{count}</p>}
+        </div>
+        <div className="mt-1 text-muted-foreground">
+          {isSectionOpen(id) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </div>
+      </button>
+
+      {isSectionOpen(id) && (
+        <div className="border-t border-border px-5 pb-5 md:px-6 md:pb-6 pt-5">
+          {children}
+        </div>
+      )}
+    </motion.section>
+  );
 
   return (
     <section id="database" className="py-24 md:py-32 px-4 scroll-mt-20">
@@ -198,11 +300,13 @@ const DigiCodeDatabase = () => {
             The Code Archive
           </h2>
           <p className="text-2xl md:text-3xl font-serif text-foreground">
-            Unwritten. Unspoken. Universally followed.
+            Structured in the order of the Digi-Code Constitution.
           </p>
           <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary/5 border border-primary/20">
-            <span className="text-2xl font-serif font-bold text-primary">{rules.length}</span>
-            <span className="text-sm text-muted-foreground font-body">Total Rules Documented</span>
+            <span className="text-2xl font-serif font-bold text-primary">85</span>
+            <span className="text-sm text-muted-foreground font-body">
+              Articles, Definitions, Principles, and Schedules Cross-Checked
+            </span>
           </div>
         </motion.div>
 
@@ -211,14 +315,14 @@ const DigiCodeDatabase = () => {
             <div className="rounded-md border border-border bg-card/60 p-4 space-y-4">
               <div>
                 <p className="text-xs font-mono tracking-[0.35em] uppercase text-primary mb-3">
-                  Quick Jump
+                  Document Jump
                 </p>
                 <div className="space-y-2">
                   {quickJumpItems.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => handleJumpToCategory(item.id)}
+                      onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
                       className="w-full text-left text-xs font-mono tracking-wider uppercase text-muted-foreground hover:text-primary transition-colors"
                     >
                       {item.label}
@@ -232,14 +336,14 @@ const DigiCodeDatabase = () => {
               <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={() => handleExpandAllCategories(true)}
+                  onClick={() => setExpandedSections(quickJumpItems.map((item) => item.id))}
                   className="w-full text-left text-xs font-mono tracking-wider uppercase text-muted-foreground hover:text-primary transition-colors"
                 >
                   Expand Sections
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleExpandAllCategories(false)}
+                  onClick={() => setExpandedSections([])}
                   className="w-full text-left text-xs font-mono tracking-wider uppercase text-muted-foreground hover:text-primary transition-colors"
                 >
                   Collapse Sections
@@ -257,7 +361,7 @@ const DigiCodeDatabase = () => {
 
           <div>
             <div className="rounded-md border border-border bg-card/50 p-4 md:p-5 mb-8">
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(180px,0.8fr)_minmax(200px,0.9fr)]">
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(220px,0.9fr)_minmax(220px,1fr)]">
                 <div className="relative">
                   <Search
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -265,7 +369,7 @@ const DigiCodeDatabase = () => {
                   />
                   <input
                     type="text"
-                    placeholder="Search article titles or clause text..."
+                    placeholder="Search definitions, parts, articles, or clauses..."
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     className="w-full bg-background border border-border rounded-md pl-10 pr-4 py-3 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
@@ -273,14 +377,13 @@ const DigiCodeDatabase = () => {
                 </div>
 
                 <select
-                  value={activeCategory}
-                  onChange={(event) => setActiveCategory(event.target.value as FilterCategory)}
+                  value={activeSection}
+                  onChange={(event) => setActiveSection(event.target.value as SectionFilter)}
                   className="bg-background border border-border rounded-md px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary"
                 >
-                  <option value="All">All Categories</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
+                  {sectionOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -290,7 +393,7 @@ const DigiCodeDatabase = () => {
                   onChange={(event) => setActiveArticle(event.target.value)}
                   className="bg-background border border-border rounded-md px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary"
                 >
-                  <option value="All">All Articles</option>
+                  <option value="all">All Articles</option>
                   {articleOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -301,11 +404,15 @@ const DigiCodeDatabase = () => {
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground font-mono">
-                  {filteredRules.length} of {rules.length} rules
+                  {totalVisibleArticles} visible articles, {visibleDefinitions.length} visible definitions
                 </p>
                 <button
                   type="button"
-                  onClick={clearFilters}
+                  onClick={() => {
+                    setSearch("");
+                    setActiveSection("all");
+                    setActiveArticle("all");
+                  }}
                   className="text-xs font-mono tracking-wider uppercase text-muted-foreground hover:text-primary transition-colors"
                 >
                   Reset Filters
@@ -314,83 +421,167 @@ const DigiCodeDatabase = () => {
             </div>
 
             <div className="space-y-6">
-              {structuredRules.map((group) => {
-                const categoryValue = buildCategoryValue(group.category);
-                const isOpen = expandedCategories.includes(categoryValue);
-                const jumpId =
-                  quickJumpItems.find((item) => item.category === group.category)?.id ?? categoryValue;
-
-                return (
-                  <motion.section
-                    key={group.category}
-                    id={jumpId}
-                    layout
-                    initial={{ opacity: 0, y: 16 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.2 }}
-                    transition={{ duration: 0.45 }}
-                    className="scroll-mt-24 rounded-md border border-border bg-card/40"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleCategory(categoryValue)}
-                      className="w-full px-5 py-5 md:px-6 flex items-start justify-between gap-4 text-left"
-                    >
-                      <div>
-                        <p className="text-xs font-mono tracking-[0.35em] uppercase text-primary mb-2">
-                          Chapter
-                        </p>
-                        <h3 className="text-2xl md:text-3xl font-serif text-foreground">
-                          {group.category}
-                        </h3>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {group.articleCount} article{group.articleCount === 1 ? "" : "s"} documented
-                        </p>
+              {(activeSection === "all" || activeSection === "definitions") &&
+                visibleDefinitions.length > 0 &&
+                renderSectionShell({
+                  id: "definitions",
+                  label: "Definitions",
+                  title: "Definitions",
+                  count: `${visibleDefinitions.length} definitions`,
+                  children: (
+                    <div className="space-y-4">
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        For the purposes of this Constitution, the following terms shall have the meanings assigned to them:
+                      </p>
+                      <div className="space-y-4">
+                        {visibleDefinitions.map((definition) => (
+                          <div
+                            key={definition.id}
+                            className="border-l border-primary/20 pl-4 md:pl-6 py-1"
+                          >
+                            <p className="text-xs font-mono tracking-[0.28em] uppercase text-primary/80 mb-1">
+                              Definition {definition.id}
+                            </p>
+                            <h4 className="font-serif text-lg text-foreground">{definition.term}</h4>
+                            <p className="mt-2 text-sm leading-relaxed text-foreground">
+                              {definition.text}
+                            </p>
+                          </div>
+                        ))}
                       </div>
-                      <div className="mt-1 text-muted-foreground">
-                        {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                      </div>
-                    </button>
+                    </div>
+                  ),
+                })}
 
-                    {isOpen && (
-                      <div className="border-t border-border px-5 pb-5 md:px-6 md:pb-6">
-                        <div className="space-y-6 pt-5">
-                          {group.chapters.map((chapter) => (
-                            <div key={`${group.category}-${chapter.title}`} className="space-y-3">
-                              <div className="pb-2 border-b border-border/60">
-                                <p className="text-xs font-mono tracking-[0.3em] uppercase text-primary/80 mb-1">
-                                  Article Group
-                                </p>
-                                <h4 className="font-serif text-lg text-foreground">
-                                  {chapter.title}
-                                </h4>
-                              </div>
-                              <div className="space-y-3">
-                                {chapter.articles.map((rule) => (
-                                  <ArticleEntry
-                                    key={rule.id}
-                                    rule={rule}
-                                    forceOpen={expandAllArticles}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          ))}
+              {(activeSection === "all" || activeSection === "part-1") &&
+                (rightsArticles.length > 0 || matchesSearch(search, [partRights.title, ...partRights.intro])) &&
+                renderSectionShell({
+                  id: "part-1",
+                  label: partRights.label,
+                  title: partRights.title,
+                  count: `${rightsArticles.length} visible articles`,
+                  children: (
+                    <div className="space-y-5">
+                      <SectionIntro section={partRights} />
+                      <div className="space-y-3">
+                        {rightsArticles.map((rule) => (
+                          <ArticleEntry key={rule.id} rule={rule} forceOpen={expandAllArticles} />
+                        ))}
+                      </div>
+                    </div>
+                  ),
+                })}
+
+              {(activeSection === "all" || activeSection === "part-2") &&
+                (dutiesArticles.length > 0 || matchesSearch(search, [partDuties.title, ...partDuties.intro])) &&
+                renderSectionShell({
+                  id: "part-2",
+                  label: partDuties.label,
+                  title: partDuties.title,
+                  count: `${dutiesArticles.length} visible articles`,
+                  children: (
+                    <div className="space-y-5">
+                      <SectionIntro section={partDuties} />
+                      <div className="space-y-3">
+                        {dutiesArticles.map((rule) => (
+                          <ArticleEntry key={rule.id} rule={rule} forceOpen={expandAllArticles} />
+                        ))}
+                      </div>
+                    </div>
+                  ),
+                })}
+
+              {visiblePartOffences &&
+                renderSectionShell({
+                  id: "part-3",
+                  label: partOffences.label,
+                  title: partOffences.title,
+                  children: <SectionIntro section={partOffences} />,
+                })}
+
+              {(activeSection === "all" || activeSection === "part-4") &&
+                (visibleCodeChapters.length > 0 || activeSection === "part-4") &&
+                renderSectionShell({
+                  id: "part-4",
+                  label: partCode.label,
+                  title: partCode.title,
+                  count: `${visibleCodeChapters.reduce((count, chapter) => count + chapter.articles.length, 0)} visible articles`,
+                  children: (
+                    <div className="space-y-6">
+                      {visibleCodeChapters.map((chapter: DigiCodeChapter) => (
+                        <div key={chapter.id} className="space-y-3">
+                          <div className="pb-2 border-b border-border/60">
+                            <p className="text-xs font-mono tracking-[0.3em] uppercase text-primary/80 mb-1">
+                              {chapter.label}
+                            </p>
+                            <h4 className="font-serif text-lg text-foreground">{chapter.title}</h4>
+                          </div>
+                          <div className="space-y-3 pl-0 md:pl-4">
+                            {chapter.articles.map((rule) => (
+                              <ArticleEntry key={rule.id} rule={rule} forceOpen={expandAllArticles} />
+                            ))}
+                          </div>
                         </div>
+                      ))}
+                    </div>
+                  ),
+                })}
+
+              {(activeSection === "all" || activeSection === "part-5") &&
+                (principleArticles.length > 0 || matchesSearch(search, [partPrinciples.title, ...partPrinciples.intro])) &&
+                renderSectionShell({
+                  id: "part-5",
+                  label: partPrinciples.label,
+                  title: partPrinciples.title,
+                  count: `${principleArticles.length} visible articles`,
+                  children: (
+                    <div className="space-y-5">
+                      <SectionIntro section={partPrinciples} />
+                      <div className="space-y-3">
+                        {principleArticles.map((rule) => (
+                          <ArticleEntry key={rule.id} rule={rule} forceOpen={expandAllArticles} />
+                        ))}
                       </div>
-                    )}
-                  </motion.section>
-                );
-              })}
+                    </div>
+                  ),
+                })}
+
+              {visibleSchedules &&
+                renderSectionShell({
+                  id: "part-6",
+                  label: schedulesSection.label,
+                  title: schedulesSection.title,
+                  children: (
+                    <div className="space-y-3">
+                      {schedulesSection.intro.map((item) => (
+                        <p key={item} className="text-sm leading-relaxed text-foreground border-l border-primary/20 pl-4 md:pl-6">
+                          {item}
+                        </p>
+                      ))}
+                    </div>
+                  ),
+                })}
+
+              {visibleConclusion &&
+                renderSectionShell({
+                  id: "conclusion",
+                  label: conclusionSection.label,
+                  title: conclusionSection.title,
+                  children: <SectionIntro section={conclusionSection} />,
+                })}
             </div>
+
+            {visibleDefinitions.length === 0 &&
+              totalVisibleArticles === 0 &&
+              !visiblePartOffences &&
+              !visibleSchedules &&
+              !visibleConclusion && (
+                <div className="text-center py-16 text-muted-foreground font-body text-sm">
+                  No sections match your search. The archive remains silent on this point.
+                </div>
+              )}
           </div>
         </div>
-
-        {structuredRules.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground font-body text-sm">
-            No rules match your search. The Code remains silent on this matter.
-          </div>
-        )}
       </div>
     </section>
   );
