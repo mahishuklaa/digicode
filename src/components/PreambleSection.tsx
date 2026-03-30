@@ -25,6 +25,10 @@ const PreambleSection = () => {
               communication, but function as societies with their own norms, expectations,
               languages, hierarchies, and power structures.
             </p>
+            <p className="text-base leading-relaxed text-muted-foreground font-body mt-6">
+              This Constitution seeks to formalise the implicit rules governing digital interaction
+              and to provide a structured understanding of behaviour within digital society.
+            </p>
           </div>
           <div className="line-ornament w-full mt-12" />
         </motion.div>

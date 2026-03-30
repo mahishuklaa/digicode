@@ -1,20 +1,22 @@
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { rules, type DigiCodeRule } from "@/data/digicode-rules";
 import {
-  conclusionSection,
   definitions,
+  offencesTable,
   partCode,
   partDuties,
   partOffences,
   partPrinciples,
   partRights,
+  scheduleTables,
   schedulesSection,
   type DigiCodeChapter,
   type DigiCodePartSection,
   type DigiCodePartWithArticles,
+  type DigiCodeTable,
 } from "@/data/digicode-structure";
 
 type SectionFilter =
@@ -25,40 +27,50 @@ type SectionFilter =
   | "part-3"
   | "part-4"
   | "part-5"
-  | "part-6"
-  | "conclusion";
+  | "part-6";
 
 const sectionOptions: Array<{ value: SectionFilter; label: string }> = [
   { value: "all", label: "All Sections" },
   { value: "definitions", label: "Definitions" },
   { value: "part-1", label: "Part I: Rights" },
   { value: "part-2", label: "Part II: Duties" },
-  { value: "part-3", label: "Part III: Offences" },
+  { value: "part-3", label: "Part III: Offences & Penalties" },
   { value: "part-4", label: "Part IV: Digital Code" },
-  { value: "part-5", label: "Part V: Principles" },
+  { value: "part-5", label: "Part V: General Principles" },
   { value: "part-6", label: "Part VI: Schedules" },
-  { value: "conclusion", label: "Conclusion" },
 ];
 
 const quickJumpItems: Array<{ id: string; label: string }> = [
+  { id: "preamble", label: "Preamble" },
   { id: "definitions", label: "Definitions" },
   { id: "part-1", label: "Rights" },
   { id: "part-2", label: "Duties" },
-  { id: "part-3", label: "Penalties" },
-  { id: "part-4", label: "Digital Code" },
-  { id: "part-5", label: "Principles" },
+  { id: "part-3", label: "Offences & Penalties" },
+  { id: "part-4", label: "Part IV" },
+  { id: "chapter-1", label: "Chapter 1 — Messaging Code" },
+  { id: "chapter-2", label: "Chapter 2 — Instagram Code" },
+  { id: "chapter-3", label: "Chapter 3 — Group Chat Code" },
+  { id: "chapter-4", label: "Chapter 4 — Relationship Code" },
+  { id: "chapter-5", label: "Chapter 5 — Conflict Code" },
+  { id: "chapter-6", label: "Chapter 6 — Meme & Internet Language Code" },
+  { id: "part-5", label: "General Principles" },
   { id: "part-6", label: "Schedules" },
-  { id: "conclusion", label: "Conclusion" },
 ];
 
-const normalizeText = (value: string) => value.toLowerCase();
+const normalizeText = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 const getClauseLabel = (index: number) => `Clause ${index + 1}`;
 
 const matchesSearch = (search: string, values: string[]) => {
-  if (!search) return true;
-  const normalizedSearch = normalizeText(search);
-  return values.some((value) => normalizeText(value).includes(normalizedSearch));
+  if (!search.trim()) return true;
+
+  const haystack = normalizeText(values.join(" "));
+  const terms = normalizeText(search)
+    .split(" ")
+    .filter((term) => term.length > 1);
+
+  return terms.every((term) => haystack.includes(term));
 };
 
 const ArticleEntry = ({
@@ -79,15 +91,12 @@ const ArticleEntry = ({
       <AccordionItem value={articleValue} className="border-b-0">
         <AccordionTrigger className="px-5 py-4 hover:no-underline">
           <div className="min-w-0 text-left">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="font-mono text-[11px] tracking-[0.3em] uppercase text-primary">
                 Article {rule.article}
               </span>
-              <span className="text-xs text-muted-foreground">{rule.title}</span>
             </div>
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {rule.clauses[0] ?? rule.clause}
-            </p>
+            <h4 className="mt-2 font-serif text-lg text-foreground">{rule.title}</h4>
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-5 pb-5">
@@ -106,7 +115,7 @@ const ArticleEntry = ({
               <p className="text-xs font-mono tracking-[0.28em] uppercase text-primary/80 mb-1.5">
                 Interpretation
               </p>
-              <p className="text-sm leading-relaxed italic text-secondary-foreground">
+              <p className="text-sm leading-relaxed text-secondary-foreground">
                 {rule.interpretation}
               </p>
             </div>
@@ -120,10 +129,45 @@ const ArticleEntry = ({
 const SectionIntro = ({ section }: { section: DigiCodePartSection }) => (
   <div className="space-y-3">
     {section.intro.map((paragraph) => (
-      <p key={paragraph} className="text-sm leading-relaxed text-muted-foreground">
+      <p key={paragraph} className="text-sm leading-relaxed text-secondary-foreground">
         {paragraph}
       </p>
     ))}
+  </div>
+);
+
+const DocumentTable = ({ table }: { table: DigiCodeTable }) => (
+  <div className="rounded-md border border-border overflow-hidden bg-card/70">
+    <div className="px-4 py-3 border-b border-border bg-secondary/40">
+      <h4 className="font-serif text-lg text-foreground">{table.title}</h4>
+    </div>
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[520px] text-sm">
+        <thead className="bg-background/60">
+          <tr>
+            {table.columns.map((column) => (
+              <th
+                key={column}
+                className="px-4 py-3 text-left font-mono text-[11px] tracking-[0.24em] uppercase text-primary/90"
+              >
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row) => (
+            <tr key={row.join("|")} className="border-t border-border/70">
+              {row.map((cell) => (
+                <td key={cell} className="px-4 py-3 align-top text-secondary-foreground">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   </div>
 );
 
@@ -140,7 +184,6 @@ const DigiCodeDatabase = () => {
     "part-4",
     "part-5",
     "part-6",
-    "conclusion",
   ]);
 
   const articleMap = useMemo(() => new Map(rules.map((rule) => [rule.article, rule])), []);
@@ -156,54 +199,59 @@ const DigiCodeDatabase = () => {
     [],
   );
 
+  const matchesArticleFilter = (rule: DigiCodeRule) =>
+    activeArticle === "all" || String(rule.article) === activeArticle;
+
   const visibleDefinitions = useMemo(
     () =>
-      definitions.filter((definition) =>
-        matchesSearch(search, [definition.term, definition.text, `Definition ${definition.id}`]),
+      definitions.filter(
+        (definition) =>
+          (activeSection === "all" || activeSection === "definitions") &&
+          activeArticle === "all" &&
+          matchesSearch(search, [definition.term, definition.text, `Definition ${definition.id}`]),
       ),
-    [search],
+    [activeArticle, activeSection, search],
   );
 
   const visibleStandaloneArticles = (part: DigiCodePartWithArticles) =>
     part.articleNumbers
       .map((articleNumber) => articleMap.get(articleNumber))
       .filter((rule): rule is DigiCodeRule => Boolean(rule))
-      .filter((rule) => {
-        const matchesSection = activeSection === "all" || activeSection === part.id;
-        const matchesArticle = activeArticle === "all" || String(rule.article) === activeArticle;
-        const matchesText = matchesSearch(search, [
-          rule.title,
-          rule.articleTitle,
-          rule.clause,
-          rule.interpretation,
-          ...rule.clauses,
-        ]);
-        return matchesSection && matchesArticle && matchesText;
-      });
+      .filter(
+        (rule) =>
+          (activeSection === "all" || activeSection === part.id) &&
+          matchesArticleFilter(rule) &&
+          matchesSearch(search, [
+            rule.title,
+            rule.articleTitle,
+            rule.clause,
+            rule.interpretation,
+            ...rule.clauses,
+          ]),
+      );
 
   const visibleCodeChapters = useMemo(
     () =>
       partCode.chapters
-        .map((chapter) => {
-          const articles = chapter.articleNumbers
+        .map((chapter) => ({
+          ...chapter,
+          articles: chapter.articleNumbers
             .map((articleNumber) => articleMap.get(articleNumber))
             .filter((rule): rule is DigiCodeRule => Boolean(rule))
-            .filter((rule) => {
-              const matchesSection = activeSection === "all" || activeSection === "part-4";
-              const matchesArticle = activeArticle === "all" || String(rule.article) === activeArticle;
-              const matchesText = matchesSearch(search, [
-                chapter.title,
-                rule.title,
-                rule.articleTitle,
-                rule.clause,
-                rule.interpretation,
-                ...rule.clauses,
-              ]);
-              return matchesSection && matchesArticle && matchesText;
-            });
-
-          return { ...chapter, articles };
-        })
+            .filter(
+              (rule) =>
+                (activeSection === "all" || activeSection === "part-4") &&
+                matchesArticleFilter(rule) &&
+                matchesSearch(search, [
+                  chapter.title,
+                  rule.title,
+                  rule.articleTitle,
+                  rule.clause,
+                  rule.interpretation,
+                  ...rule.clauses,
+                ]),
+            ),
+        }))
         .filter((chapter) => chapter.articles.length > 0),
     [activeArticle, activeSection, articleMap, search],
   );
@@ -215,20 +263,21 @@ const DigiCodeDatabase = () => {
   const visiblePartOffences =
     (activeSection === "all" || activeSection === "part-3") &&
     activeArticle === "all" &&
-    matchesSearch(search, [...partOffences.intro, partOffences.title]);
+    matchesSearch(search, [...partOffences.intro, partOffences.title, ...offencesTable.rows.flat()]);
 
   const visibleSchedules =
     (activeSection === "all" || activeSection === "part-6") &&
     activeArticle === "all" &&
-    matchesSearch(search, [...schedulesSection.intro, schedulesSection.title]);
-
-  const visibleConclusion =
-    (activeSection === "all" || activeSection === "conclusion") &&
-    activeArticle === "all" &&
-    matchesSearch(search, [...conclusionSection.intro, conclusionSection.title]);
+    matchesSearch(search, [
+      schedulesSection.title,
+      ...schedulesSection.intro,
+      ...scheduleTables.flatMap((table) => [table.title, ...table.columns, ...table.rows.flat()]),
+    ]);
 
   const totalVisibleArticles =
-    rightsArticles.length + dutiesArticles.length + principleArticles.length +
+    rightsArticles.length +
+    dutiesArticles.length +
+    principleArticles.length +
     visibleCodeChapters.reduce((count, chapter) => count + chapter.articles.length, 0);
 
   const toggleSection = (sectionId: string) => {
@@ -250,7 +299,7 @@ const DigiCodeDatabase = () => {
     label: string;
     title: string;
     count?: string;
-    children: React.ReactNode;
+    children: ReactNode;
   }) => (
     <motion.section
       id={id}
@@ -271,7 +320,7 @@ const DigiCodeDatabase = () => {
             {label}
           </p>
           <h3 className="text-2xl md:text-3xl font-serif text-foreground">{title}</h3>
-          {count && <p className="mt-2 text-sm text-muted-foreground">{count}</p>}
+          {count && <p className="mt-2 text-sm text-secondary-foreground">{count}</p>}
         </div>
         <div className="mt-1 text-muted-foreground">
           {isSectionOpen(id) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -300,17 +349,33 @@ const DigiCodeDatabase = () => {
             The Code Archive
           </h2>
           <p className="text-2xl md:text-3xl font-serif text-foreground">
-            Structured in the order of the Digi-Code Constitution.
+            The Digi-Code Constitution
           </p>
-          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary/5 border border-primary/20">
-            <span className="text-2xl font-serif font-bold text-primary">85</span>
-            <span className="text-sm text-muted-foreground font-body">
-              Articles, Definitions, Principles, and Schedules Cross-Checked
-            </span>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="rounded-md border border-primary/20 bg-primary/5 px-4 py-3">
+              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Articles</p>
+              <p className="mt-1 text-2xl font-serif text-primary">85</p>
+            </div>
+            <div className="rounded-md border border-border bg-card/60 px-4 py-3">
+              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Definitions</p>
+              <p className="mt-1 text-2xl font-serif text-foreground">{definitions.length}</p>
+            </div>
+            <div className="rounded-md border border-border bg-card/60 px-4 py-3">
+              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Principles</p>
+              <p className="mt-1 text-2xl font-serif text-foreground">{partPrinciples.articleNumbers.length}</p>
+            </div>
+            <div className="rounded-md border border-border bg-card/60 px-4 py-3">
+              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Schedules</p>
+              <p className="mt-1 text-2xl font-serif text-foreground">{scheduleTables.length}</p>
+            </div>
+            <div className="rounded-md border border-border bg-card/60 px-4 py-3">
+              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Chapters</p>
+              <p className="mt-1 text-2xl font-serif text-foreground">{partCode.chapters.length}</p>
+            </div>
           </div>
         </motion.div>
 
-        <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
           <aside className="lg:sticky lg:top-24 h-fit">
             <div className="rounded-md border border-border bg-card/60 p-4 space-y-4">
               <div>
@@ -322,8 +387,10 @@ const DigiCodeDatabase = () => {
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                      className="w-full text-left text-xs font-mono tracking-wider uppercase text-muted-foreground hover:text-primary transition-colors"
+                      onClick={() =>
+                        document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+                      }
+                      className="w-full text-left text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
                     >
                       {item.label}
                     </button>
@@ -336,22 +403,22 @@ const DigiCodeDatabase = () => {
               <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={() => setExpandedSections(quickJumpItems.map((item) => item.id))}
-                  className="w-full text-left text-xs font-mono tracking-wider uppercase text-muted-foreground hover:text-primary transition-colors"
+                  onClick={() => setExpandedSections(["definitions", "part-1", "part-2", "part-3", "part-4", "part-5", "part-6"])}
+                  className="w-full text-left text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
                 >
                   Expand Sections
                 </button>
                 <button
                   type="button"
                   onClick={() => setExpandedSections([])}
-                  className="w-full text-left text-xs font-mono tracking-wider uppercase text-muted-foreground hover:text-primary transition-colors"
+                  className="w-full text-left text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
                 >
                   Collapse Sections
                 </button>
                 <button
                   type="button"
                   onClick={() => setExpandAllArticles((prev) => !prev)}
-                  className="w-full text-left text-xs font-mono tracking-wider uppercase text-muted-foreground hover:text-primary transition-colors"
+                  className="w-full text-left text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
                 >
                   {expandAllArticles ? "Collapse Articles" : "Expand Articles"}
                 </button>
@@ -361,7 +428,7 @@ const DigiCodeDatabase = () => {
 
           <div>
             <div className="rounded-md border border-border bg-card/50 p-4 md:p-5 mb-8">
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(220px,0.9fr)_minmax(220px,1fr)]">
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(230px,0.9fr)_minmax(240px,1fr)]">
                 <div className="relative">
                   <Search
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -369,7 +436,7 @@ const DigiCodeDatabase = () => {
                   />
                   <input
                     type="text"
-                    placeholder="Search definitions, parts, articles, or clauses..."
+                    placeholder="Search exact topics, articles, clauses, or tables..."
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     className="w-full bg-background border border-border rounded-md pl-10 pr-4 py-3 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
@@ -403,7 +470,7 @@ const DigiCodeDatabase = () => {
               </div>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground font-mono">
+                <p className="text-xs text-secondary-foreground font-mono">
                   {totalVisibleArticles} visible articles, {visibleDefinitions.length} visible definitions
                 </p>
                 <button
@@ -413,7 +480,7 @@ const DigiCodeDatabase = () => {
                     setActiveSection("all");
                     setActiveArticle("all");
                   }}
-                  className="text-xs font-mono tracking-wider uppercase text-muted-foreground hover:text-primary transition-colors"
+                  className="text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
                 >
                   Reset Filters
                 </button>
@@ -430,7 +497,7 @@ const DigiCodeDatabase = () => {
                   count: `${visibleDefinitions.length} definitions`,
                   children: (
                     <div className="space-y-4">
-                      <p className="text-sm leading-relaxed text-muted-foreground">
+                      <p className="text-sm leading-relaxed text-secondary-foreground">
                         For the purposes of this Constitution, the following terms shall have the meanings assigned to them:
                       </p>
                       <div className="space-y-4">
@@ -443,7 +510,7 @@ const DigiCodeDatabase = () => {
                               Definition {definition.id}
                             </p>
                             <h4 className="font-serif text-lg text-foreground">{definition.term}</h4>
-                            <p className="mt-2 text-sm leading-relaxed text-foreground">
+                            <p className="mt-2 text-sm leading-relaxed text-secondary-foreground">
                               {definition.text}
                             </p>
                           </div>
@@ -496,7 +563,12 @@ const DigiCodeDatabase = () => {
                   id: "part-3",
                   label: partOffences.label,
                   title: partOffences.title,
-                  children: <SectionIntro section={partOffences} />,
+                  children: (
+                    <div className="space-y-5">
+                      <SectionIntro section={partOffences} />
+                      <DocumentTable table={offencesTable} />
+                    </div>
+                  ),
                 })}
 
               {(activeSection === "all" || activeSection === "part-4") &&
@@ -509,7 +581,7 @@ const DigiCodeDatabase = () => {
                   children: (
                     <div className="space-y-6">
                       {visibleCodeChapters.map((chapter: DigiCodeChapter) => (
-                        <div key={chapter.id} className="space-y-3">
+                        <div key={chapter.id} id={chapter.id} className="space-y-3 scroll-mt-24">
                           <div className="pb-2 border-b border-border/60">
                             <p className="text-xs font-mono tracking-[0.3em] uppercase text-primary/80 mb-1">
                               {chapter.label}
@@ -552,31 +624,21 @@ const DigiCodeDatabase = () => {
                   label: schedulesSection.label,
                   title: schedulesSection.title,
                   children: (
-                    <div className="space-y-3">
-                      {schedulesSection.intro.map((item) => (
-                        <p key={item} className="text-sm leading-relaxed text-foreground border-l border-primary/20 pl-4 md:pl-6">
-                          {item}
-                        </p>
+                    <div className="space-y-5">
+                      <SectionIntro section={schedulesSection} />
+                      {scheduleTables.map((table) => (
+                        <DocumentTable key={table.title} table={table} />
                       ))}
                     </div>
                   ),
-                })}
-
-              {visibleConclusion &&
-                renderSectionShell({
-                  id: "conclusion",
-                  label: conclusionSection.label,
-                  title: conclusionSection.title,
-                  children: <SectionIntro section={conclusionSection} />,
                 })}
             </div>
 
             {visibleDefinitions.length === 0 &&
               totalVisibleArticles === 0 &&
               !visiblePartOffences &&
-              !visibleSchedules &&
-              !visibleConclusion && (
-                <div className="text-center py-16 text-muted-foreground font-body text-sm">
+              !visibleSchedules && (
+                <div className="text-center py-16 text-secondary-foreground font-body text-sm">
                   No sections match your search. The archive remains silent on this point.
                 </div>
               )}

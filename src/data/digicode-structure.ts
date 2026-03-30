@@ -11,6 +11,12 @@ export interface DigiCodePartSection {
   intro: string[];
 }
 
+export interface DigiCodeTable {
+  title: string;
+  columns: string[];
+  rows: string[][];
+}
+
 export interface DigiCodePartWithArticles extends DigiCodePartSection {
   articleNumbers: number[];
 }
@@ -40,12 +46,12 @@ export const definitions: DigiCodeDefinition[] = [
   {
     id: 3,
     term: "Platform Indicators",
-    text: "Platform Indicators shall include features such as \"Seen\", \"Typing…\", \"Online\", \"Last Seen\", Story Views, Likes, and Read Receipts that communicate information without words.",
+    text: "Platform Indicators shall include features such as \"Seen\", \"Typing...\", \"Online\", \"Last Seen\", Story Views, Likes, and Read Receipts that communicate information without words.",
   },
   {
     id: 4,
     term: "Social Acknowledgment",
-    text: "Social Acknowledgment shall include liking, reacting, commenting, replying, tagging, or any visible interaction that indicates recognition of another individual’s digital activity.",
+    text: "Social Acknowledgment shall include liking, reacting, commenting, replying, tagging, or any visible interaction that indicates recognition of another individual's digital activity.",
   },
   {
     id: 5,
@@ -91,6 +97,24 @@ export const partOffences: DigiCodePartSection = {
   intro: [
     "The following acts shall constitute digital offences under this Constitution. These offences may result in social penalties including but not limited to reduced interaction, emotional distancing, delayed responses, or reputational consequences.",
     "This section shows that digital spaces have informal systems of punishment and social control. When individuals violate digital social norms, there are social consequences like emotional distance, reduced replies, exclusion, or indirect confrontation.",
+  ],
+};
+
+export const offencesTable: DigiCodeTable = {
+  title: "Digital Offence / Social Penalty Index",
+  columns: ["Digital Offence", "Social Penalty"],
+  rows: [
+    ["Leaving on seen", "Reduced reply priority"],
+    ["Not liking friend's post", "Emotional distance"],
+    ["Dry replies", "Conversation termination"],
+    ["Leaving group", "Permanent screenshot circulation"],
+    ["Breaking streak", "Loss of best friend status"],
+    ["Late reply", "\"It's okay\" (It is not okay) treatment"],
+    ["Ignoring reels/memes sent by friend", "Friendship probation"],
+    ["Posting and not replying to comments", "Social arrogance label"],
+    ["Watching story instantly but replying after 10 hours", "Suspicious behaviour tag"],
+    ["Unfollowing", "Social investigation committee formed"],
+    ["Removing tags/posts suddenly", "Breakup speculation"],
   ],
 };
 
@@ -155,12 +179,68 @@ export const schedulesSection: DigiCodePartSection = {
   label: "Part VI",
   title: "Schedules",
   intro: [
-    "Schedule I — Reply Time Classification",
-    "Schedule II — Digital Relationship Visibility Levels",
-    "Schedule III — Digital Conflict Severity Levels",
-    "Schedule IV — Effort Levels in Digital Communication",
+    "Schedule I - Reply Time Classification",
+    "Schedule II - Digital Relationship Visibility Levels",
+    "Schedule III - Digital Conflict Severity Levels",
+    "Schedule IV - Effort Levels in Digital Communication",
   ],
 };
+
+export const scheduleTables: DigiCodeTable[] = [
+  {
+    title: "Schedule I - Reply Time Classification",
+    columns: ["Reply Time", "Interpretation"],
+    rows: [
+      ["< 5 min", "High interest"],
+      ["5-30 min", "Normal"],
+      ["1-3 hours", "Busy"],
+      ["6-12 hours", "Low priority"],
+      ["24+ hours", "Avoidance"],
+      ["Seen + no reply", "Social danger"],
+    ],
+  },
+  {
+    title: "Schedule II - Digital Relationship Visibility Levels",
+    columns: ["Platform Feature", "Relationship Level"],
+    rows: [
+      ["Like", "Basic acknowledgment"],
+      ["Comment", "Support"],
+      ["Story reply", "Conversation interest"],
+      ["Close Friends", "Inner circle"],
+      ["Tagging", "Public association"],
+      ["Feed post", "Public importance"],
+      ["Highlight", "Long-term importance"],
+    ],
+  },
+  {
+    title: "Schedule III - Digital Conflict Severity Levels",
+    columns: ["Action", "Conflict Level"],
+    rows: [
+      ["Late reply", "Low"],
+      ["Dry reply", "Low"],
+      ["Seen ignore", "Medium"],
+      ["Remove follower", "Medium"],
+      ["Unfollow", "High"],
+      ["Block", "Extreme"],
+    ],
+  },
+  {
+    title: "Schedule IV - Effort Levels in Digital Communication",
+    columns: ["Digital Action", "Effort Level"],
+    rows: [
+      ["Seen", "No effort"],
+      ["Like", "Low effort"],
+      ["Reaction", "Low effort"],
+      ["Short reply", "Low effort"],
+      ["Emoji reply", "Low effort"],
+      ["Comment", "Medium effort"],
+      ["Story reply", "Medium effort"],
+      ["Long message", "High effort"],
+      ["Voice note", "High effort"],
+      ["Video call", "Very high effort"],
+    ],
+  },
+];
 
 export const conclusionSection: DigiCodePartSection = {
   id: "conclusion",
