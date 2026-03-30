@@ -32,29 +32,29 @@ type SectionFilter =
 const sectionOptions: Array<{ value: SectionFilter; label: string }> = [
   { value: "all", label: "All Sections" },
   { value: "definitions", label: "Definitions" },
-  { value: "part-1", label: "Part I: Rights" },
-  { value: "part-2", label: "Part II: Duties" },
-  { value: "part-3", label: "Part III: Offences & Penalties" },
-  { value: "part-4", label: "Part IV: Digital Code" },
-  { value: "part-5", label: "Part V: General Principles" },
-  { value: "part-6", label: "Part VI: Schedules" },
+  { value: "part-1", label: "Part I - Fundamental Rights" },
+  { value: "part-2", label: "Part II - Fundamental Duties" },
+  { value: "part-3", label: "Part III - Offences & Penalties" },
+  { value: "part-4", label: "Part IV - The Digital Code" },
+  { value: "part-5", label: "Part V - General Principles" },
+  { value: "part-6", label: "Part VI - Schedules" },
 ];
 
 const quickJumpItems: Array<{ id: string; label: string }> = [
   { id: "preamble", label: "Preamble" },
   { id: "definitions", label: "Definitions" },
-  { id: "part-1", label: "Rights" },
-  { id: "part-2", label: "Duties" },
-  { id: "part-3", label: "Offences & Penalties" },
-  { id: "part-4", label: "Part IV" },
-  { id: "chapter-1", label: "Chapter 1 — Messaging Code" },
-  { id: "chapter-2", label: "Chapter 2 — Instagram Code" },
-  { id: "chapter-3", label: "Chapter 3 — Group Chat Code" },
-  { id: "chapter-4", label: "Chapter 4 — Relationship Code" },
-  { id: "chapter-5", label: "Chapter 5 — Conflict Code" },
-  { id: "chapter-6", label: "Chapter 6 — Meme & Internet Language Code" },
-  { id: "part-5", label: "General Principles" },
-  { id: "part-6", label: "Schedules" },
+  { id: "part-1", label: "Part I - Fundamental Rights" },
+  { id: "part-2", label: "Part II - Fundamental Duties" },
+  { id: "part-3", label: "Part III - Offences & Penalties" },
+  { id: "part-4", label: "Part IV - The Digital Code" },
+  { id: "chapter-1", label: "Chapter 1 - Messaging Code" },
+  { id: "chapter-2", label: "Chapter 2 - Instagram Code" },
+  { id: "chapter-3", label: "Chapter 3 - Group Chat Code" },
+  { id: "chapter-4", label: "Chapter 4 - Relationship Code" },
+  { id: "chapter-5", label: "Chapter 5 - Conflict Code" },
+  { id: "chapter-6", label: "Chapter 6 - Meme & Internet Language Code" },
+  { id: "part-5", label: "Part V - General Principles" },
+  { id: "part-6", label: "Part VI - Schedules" },
 ];
 
 const normalizeText = (value: string) =>
@@ -112,7 +112,7 @@ const ArticleEntry = ({
               ))}
             </ol>
             <div className="mt-5 border-t border-border/70 pt-4">
-              <p className="text-xs font-mono tracking-[0.28em] uppercase text-primary/80 mb-1.5">
+              <p className="mb-1.5 text-xs font-mono tracking-[0.28em] uppercase text-primary/80">
                 Interpretation
               </p>
               <p className="text-sm leading-relaxed text-secondary-foreground">
@@ -137,8 +137,8 @@ const SectionIntro = ({ section }: { section: DigiCodePartSection }) => (
 );
 
 const DocumentTable = ({ table }: { table: DigiCodeTable }) => (
-  <div className="rounded-md border border-border overflow-hidden bg-card/70">
-    <div className="px-4 py-3 border-b border-border bg-secondary/40">
+  <div className="overflow-hidden rounded-md border border-border bg-card/70">
+    <div className="border-b border-border bg-secondary/40 px-4 py-3">
       <h4 className="font-serif text-lg text-foreground">{table.title}</h4>
     </div>
     <div className="overflow-x-auto">
@@ -186,8 +186,6 @@ const DigiCodeDatabase = () => {
     "part-6",
   ]);
 
-  const articleMap = useMemo(() => new Map(rules.map((rule) => [rule.article, rule])), []);
-
   const articleOptions = useMemo(
     () =>
       [...rules]
@@ -202,6 +200,11 @@ const DigiCodeDatabase = () => {
   const matchesArticleFilter = (rule: DigiCodeRule) =>
     activeArticle === "all" || String(rule.article) === activeArticle;
 
+  const getRulesForArticles = (articleNumbers: number[]) =>
+    articleNumbers
+      .map((articleNumber) => rules.find((rule) => rule.article === articleNumber))
+      .filter((rule): rule is DigiCodeRule => Boolean(rule));
+
   const visibleDefinitions = useMemo(
     () =>
       definitions.filter(
@@ -214,46 +217,40 @@ const DigiCodeDatabase = () => {
   );
 
   const visibleStandaloneArticles = (part: DigiCodePartWithArticles) =>
-    part.articleNumbers
-      .map((articleNumber) => articleMap.get(articleNumber))
-      .filter((rule): rule is DigiCodeRule => Boolean(rule))
-      .filter(
-        (rule) =>
-          (activeSection === "all" || activeSection === part.id) &&
-          matchesArticleFilter(rule) &&
-          matchesSearch(search, [
-            rule.title,
-            rule.articleTitle,
-            rule.clause,
-            rule.interpretation,
-            ...rule.clauses,
-          ]),
-      );
+    getRulesForArticles(part.articleNumbers).filter(
+      (rule) =>
+        (activeSection === "all" || activeSection === part.id) &&
+        matchesArticleFilter(rule) &&
+        matchesSearch(search, [
+          rule.title,
+          rule.articleTitle,
+          rule.clause,
+          rule.interpretation,
+          ...rule.clauses,
+        ]),
+    );
 
   const visibleCodeChapters = useMemo(
     () =>
       partCode.chapters
         .map((chapter) => ({
           ...chapter,
-          articles: chapter.articleNumbers
-            .map((articleNumber) => articleMap.get(articleNumber))
-            .filter((rule): rule is DigiCodeRule => Boolean(rule))
-            .filter(
-              (rule) =>
-                (activeSection === "all" || activeSection === "part-4") &&
-                matchesArticleFilter(rule) &&
-                matchesSearch(search, [
-                  chapter.title,
-                  rule.title,
-                  rule.articleTitle,
-                  rule.clause,
-                  rule.interpretation,
-                  ...rule.clauses,
-                ]),
-            ),
+          articles: getRulesForArticles(chapter.articleNumbers).filter(
+            (rule) =>
+              (activeSection === "all" || activeSection === "part-4") &&
+              matchesArticleFilter(rule) &&
+              matchesSearch(search, [
+                chapter.title,
+                rule.title,
+                rule.articleTitle,
+                rule.clause,
+                rule.interpretation,
+                ...rule.clauses,
+              ]),
+          ),
         }))
         .filter((chapter) => chapter.articles.length > 0),
-    [activeArticle, activeSection, articleMap, search],
+    [activeArticle, activeSection, search],
   );
 
   const rightsArticles = visibleStandaloneArticles(partRights);
@@ -313,13 +310,11 @@ const DigiCodeDatabase = () => {
       <button
         type="button"
         onClick={() => toggleSection(id)}
-        className="w-full px-5 py-5 md:px-6 flex items-start justify-between gap-4 text-left"
+        className="flex w-full items-start justify-between gap-4 px-5 py-5 text-left md:px-6"
       >
         <div>
-          <p className="text-xs font-mono tracking-[0.35em] uppercase text-primary mb-2">
-            {label}
-          </p>
-          <h3 className="text-2xl md:text-3xl font-serif text-foreground">{title}</h3>
+          <p className="mb-2 text-xs font-mono tracking-[0.35em] uppercase text-primary">{label}</p>
+          <h3 className="text-2xl font-serif text-foreground md:text-3xl">{title}</h3>
           {count && <p className="mt-2 text-sm text-secondary-foreground">{count}</p>}
         </div>
         <div className="mt-1 text-muted-foreground">
@@ -328,16 +323,14 @@ const DigiCodeDatabase = () => {
       </button>
 
       {isSectionOpen(id) && (
-        <div className="border-t border-border px-5 pb-5 md:px-6 md:pb-6 pt-5">
-          {children}
-        </div>
+        <div className="border-t border-border px-5 pb-5 pt-5 md:px-6 md:pb-6">{children}</div>
       )}
     </motion.section>
   );
 
   return (
-    <section id="database" className="py-24 md:py-32 px-4 scroll-mt-20">
-      <div className="max-w-6xl mx-auto">
+    <section id="database" className="scroll-mt-20 px-4 py-24 md:py-32">
+      <div className="mx-auto max-w-6xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -345,41 +338,39 @@ const DigiCodeDatabase = () => {
           transition={{ duration: 0.6 }}
           className="mb-12"
         >
-          <h2 className="text-xs font-mono tracking-[0.4em] uppercase text-primary mb-4">
+          <h2 className="mb-4 text-xs font-mono uppercase tracking-[0.4em] text-primary">
             The Code Archive
           </h2>
-          <p className="text-2xl md:text-3xl font-serif text-foreground">
-            The Digi-Code Constitution
-          </p>
+          <p className="text-2xl font-serif text-foreground md:text-3xl">The Digi-Code Constitution</p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-md border border-primary/20 bg-primary/5 px-4 py-3">
-              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Articles</p>
+              <p className="text-xs font-mono uppercase tracking-[0.24em] text-primary/80">Articles</p>
               <p className="mt-1 text-2xl font-serif text-primary">85</p>
             </div>
             <div className="rounded-md border border-border bg-card/60 px-4 py-3">
-              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Definitions</p>
+              <p className="text-xs font-mono uppercase tracking-[0.24em] text-primary/80">Definitions</p>
               <p className="mt-1 text-2xl font-serif text-foreground">{definitions.length}</p>
             </div>
             <div className="rounded-md border border-border bg-card/60 px-4 py-3">
-              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Principles</p>
+              <p className="text-xs font-mono uppercase tracking-[0.24em] text-primary/80">Principles</p>
               <p className="mt-1 text-2xl font-serif text-foreground">{partPrinciples.articleNumbers.length}</p>
             </div>
             <div className="rounded-md border border-border bg-card/60 px-4 py-3">
-              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Schedules</p>
+              <p className="text-xs font-mono uppercase tracking-[0.24em] text-primary/80">Schedules</p>
               <p className="mt-1 text-2xl font-serif text-foreground">{scheduleTables.length}</p>
             </div>
             <div className="rounded-md border border-border bg-card/60 px-4 py-3">
-              <p className="text-xs font-mono tracking-[0.24em] uppercase text-primary/80">Chapters</p>
+              <p className="text-xs font-mono uppercase tracking-[0.24em] text-primary/80">Chapters</p>
               <p className="mt-1 text-2xl font-serif text-foreground">{partCode.chapters.length}</p>
             </div>
           </div>
         </motion.div>
 
         <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <aside className="lg:sticky lg:top-24 h-fit">
-            <div className="rounded-md border border-border bg-card/60 p-4 space-y-4">
+          <aside className="h-fit lg:sticky lg:top-24">
+            <div className="space-y-4 rounded-md border border-border bg-card/60 p-4">
               <div>
-                <p className="text-xs font-mono tracking-[0.35em] uppercase text-primary mb-3">
+                <p className="mb-3 text-xs font-mono uppercase tracking-[0.35em] text-primary">
                   Document Jump
                 </p>
                 <div className="space-y-2">
@@ -390,7 +381,7 @@ const DigiCodeDatabase = () => {
                       onClick={() =>
                         document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })
                       }
-                      className="w-full text-left text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
+                      className="w-full text-left text-xs font-mono uppercase tracking-wider text-secondary-foreground transition-colors hover:text-primary"
                     >
                       {item.label}
                     </button>
@@ -404,21 +395,21 @@ const DigiCodeDatabase = () => {
                 <button
                   type="button"
                   onClick={() => setExpandedSections(["definitions", "part-1", "part-2", "part-3", "part-4", "part-5", "part-6"])}
-                  className="w-full text-left text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
+                  className="w-full text-left text-xs font-mono uppercase tracking-wider text-secondary-foreground transition-colors hover:text-primary"
                 >
                   Expand Sections
                 </button>
                 <button
                   type="button"
                   onClick={() => setExpandedSections([])}
-                  className="w-full text-left text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
+                  className="w-full text-left text-xs font-mono uppercase tracking-wider text-secondary-foreground transition-colors hover:text-primary"
                 >
                   Collapse Sections
                 </button>
                 <button
                   type="button"
                   onClick={() => setExpandAllArticles((prev) => !prev)}
-                  className="w-full text-left text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
+                  className="w-full text-left text-xs font-mono uppercase tracking-wider text-secondary-foreground transition-colors hover:text-primary"
                 >
                   {expandAllArticles ? "Collapse Articles" : "Expand Articles"}
                 </button>
@@ -427,26 +418,23 @@ const DigiCodeDatabase = () => {
           </aside>
 
           <div>
-            <div className="rounded-md border border-border bg-card/50 p-4 md:p-5 mb-8">
+            <div className="mb-8 rounded-md border border-border bg-card/50 p-4 md:p-5">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(230px,0.9fr)_minmax(240px,1fr)]">
                 <div className="relative">
-                  <Search
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    size={16}
-                  />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                   <input
                     type="text"
                     placeholder="Search exact topics, articles, clauses, or tables..."
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    className="w-full bg-background border border-border rounded-md pl-10 pr-4 py-3 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                    className="w-full rounded-md border border-border bg-background py-3 pl-10 pr-4 text-sm font-body text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:outline-none"
                   />
                 </div>
 
                 <select
                   value={activeSection}
                   onChange={(event) => setActiveSection(event.target.value as SectionFilter)}
-                  className="bg-background border border-border rounded-md px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary"
+                  className="rounded-md border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none"
                 >
                   {sectionOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -458,7 +446,7 @@ const DigiCodeDatabase = () => {
                 <select
                   value={activeArticle}
                   onChange={(event) => setActiveArticle(event.target.value)}
-                  className="bg-background border border-border rounded-md px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary"
+                  className="rounded-md border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none"
                 >
                   <option value="all">All Articles</option>
                   {articleOptions.map((option) => (
@@ -470,7 +458,7 @@ const DigiCodeDatabase = () => {
               </div>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-secondary-foreground font-mono">
+                <p className="text-xs font-mono text-secondary-foreground">
                   {totalVisibleArticles} visible articles, {visibleDefinitions.length} visible definitions
                 </p>
                 <button
@@ -480,7 +468,7 @@ const DigiCodeDatabase = () => {
                     setActiveSection("all");
                     setActiveArticle("all");
                   }}
-                  className="text-xs font-mono tracking-wider uppercase text-secondary-foreground hover:text-primary transition-colors"
+                  className="text-xs font-mono uppercase tracking-wider text-secondary-foreground transition-colors hover:text-primary"
                 >
                   Reset Filters
                 </button>
@@ -502,11 +490,8 @@ const DigiCodeDatabase = () => {
                       </p>
                       <div className="space-y-4">
                         {visibleDefinitions.map((definition) => (
-                          <div
-                            key={definition.id}
-                            className="border-l border-primary/20 pl-4 md:pl-6 py-1"
-                          >
-                            <p className="text-xs font-mono tracking-[0.28em] uppercase text-primary/80 mb-1">
+                          <div key={definition.id} className="border-l border-primary/20 py-1 pl-4 md:pl-6">
+                            <p className="mb-1 text-xs font-mono uppercase tracking-[0.28em] text-primary/80">
                               Definition {definition.id}
                             </p>
                             <h4 className="font-serif text-lg text-foreground">{definition.term}</h4>
@@ -572,7 +557,6 @@ const DigiCodeDatabase = () => {
                 })}
 
               {(activeSection === "all" || activeSection === "part-4") &&
-                (visibleCodeChapters.length > 0 || activeSection === "part-4") &&
                 renderSectionShell({
                   id: "part-4",
                   label: partCode.label,
@@ -581,14 +565,14 @@ const DigiCodeDatabase = () => {
                   children: (
                     <div className="space-y-6">
                       {visibleCodeChapters.map((chapter: DigiCodeChapter) => (
-                        <div key={chapter.id} id={chapter.id} className="space-y-3 scroll-mt-24">
-                          <div className="pb-2 border-b border-border/60">
-                            <p className="text-xs font-mono tracking-[0.3em] uppercase text-primary/80 mb-1">
+                        <div key={chapter.id} id={chapter.id} className="scroll-mt-24 space-y-3">
+                          <div className="border-b border-border/60 pb-2">
+                            <p className="mb-1 text-xs font-mono uppercase tracking-[0.3em] text-primary/80">
                               {chapter.label}
                             </p>
                             <h4 className="font-serif text-lg text-foreground">{chapter.title}</h4>
                           </div>
-                          <div className="space-y-3 pl-0 md:pl-4">
+                          <div className="space-y-3 md:pl-4">
                             {chapter.articles.map((rule) => (
                               <ArticleEntry key={rule.id} rule={rule} forceOpen={expandAllArticles} />
                             ))}
@@ -638,7 +622,7 @@ const DigiCodeDatabase = () => {
               totalVisibleArticles === 0 &&
               !visiblePartOffences &&
               !visibleSchedules && (
-                <div className="text-center py-16 text-secondary-foreground font-body text-sm">
+                <div className="py-16 text-center text-sm font-body text-secondary-foreground">
                   No sections match your search. The archive remains silent on this point.
                 </div>
               )}
